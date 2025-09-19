@@ -167,18 +167,14 @@ jobs:
           # 额外安装flet-cli用于构建
           pip install flet-cli
       
-      # Flutter环境检查和修复 (仅Android构建需要)
-      - name: Flutter环境检查和修复
+      # Flutter环境检查 (仅Android构建需要)
+      - name: Flutter环境检查
         if: matrix.platform == 'android'
         run: |
           # 运行flutter doctor检查环境
           flutter doctor -v
           
-          # 清理Flutter缓存并重新获取依赖
-          flutter clean
-          flutter pub get
-          
-          # 预构建Flutter工具
+          # 预构建Flutter工具 (Flet会自动管理项目依赖)
           flutter precache --android
       
       # 构建应用 - Web/PWA平台
@@ -194,6 +190,9 @@ jobs:
         run: |
           # 使用常规build命令构建其他平台应用
           flet build ${{ matrix.flet_target }} --verbose
+        env:
+          # 设置环境变量以跳过不必要的检查
+          FLUTTER_SKIP_ANDROID_STUDIO_CHECK: true
       
       # 创建发布目录
       - name: 准备发布文件
