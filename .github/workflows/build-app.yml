@@ -158,6 +158,19 @@ jobs:
         run: |
           sudo gem install cocoapods
       
+      # 缓存Gradle依赖 (仅Android构建需要)
+      - name: 缓存Gradle依赖
+        if: matrix.platform == 'android'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android/build-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       # 安装Python依赖
       - name: 安装Python依赖
         run: |
@@ -187,12 +200,24 @@ jobs:
       # 构建应用 - 其他平台
       - name: 构建非Web平台应用
         if: matrix.platform != 'web'
+        timeout-minutes: 45
         run: |
+          # 设置Gradle守护进程选项
+          mkdir -p ~/.gradle
+          echo "org.gradle.daemon=false" >> ~/.gradle/gradle.properties
+          echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.configureondemand=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError" >> ~/.gradle/gradle.properties
+          
           # 使用常规build命令构建其他平台应用
           flet build ${{ matrix.flet_target }} --verbose
         env:
           # 设置环境变量以跳过不必要的检查
           FLUTTER_SKIP_ANDROID_STUDIO_CHECK: true
+          # Gradle构建优化
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx4g"
+          # Flutter构建优化
+          FLUTTER_BUILD_MODE: release
       
       # 创建发布目录
       - name: 准备发布文件
