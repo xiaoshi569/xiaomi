@@ -1,0 +1,117 @@
+[project]
+name = "xiaomi-wallet-gui"
+version = "1.0.0"
+description = "小米钱包每日任务GUI应用 - 支持多账号管理和自动签到"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "xiaomi-wallet-gui"}
+]
+keywords = ["xiaomi", "wallet", "checkin", "gui", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "flet>=0.25.0",
+    "qrcode[pil]>=7.4.2",
+    "requests>=2.32.5",
+    "urllib3>=2.0.0",
+    "pillow>=10.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyinstaller>=6.0.0",
+]
+
+[project.scripts]
+xiaomi-wallet-gui = "gui:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+include = [
+    "*.py",
+    "README.md",
+]
+
+[tool.pyinstaller]
+name = "xiaomi-wallet-gui"
+entry-points = ["gui.py"]
+options = [
+    "--onefile",
+    "--windowed",
+    "--add-data=README.md:.",
+]
+
+# Flet构建配置
+[tool.flet]
+app.module = "gui"
+compile.app = false
+compile.packages = false
+
+# Windows平台配置
+[tool.flet.windows]
+app.module = "main_windows"
+
+# macOS平台配置
+[tool.flet.macos]
+app.module = "main_macos"
+
+[tool.flet.android]
+package = "com.xiaomi.wallet.gui"
+app.module = "main_android"
+permissions = [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.WRITE_EXTERNAL_STORAGE",
+    "android.permission.READ_EXTERNAL_STORAGE"
+]
+signing_key_store = ""
+signing_key_store_password = ""
+signing_key_password = ""
+signing_key_alias = "upload"
+
+[tool.flet.ios]
+bundle_id = "com.xiaomi.wallet.gui"
+app.module = "main_ios"
+team_id = ""
+
+[tool.flet.ios.info_plist_additions]
+NSInternetUsage = "此应用需要网络访问来执行小米钱包任务"
+NSNetworkUsageDescription = "此应用需要网络访问来执行小米钱包任务"
+
+[tool.flet.ios.info_plist_additions.NSAppTransportSecurity]
+NSAllowsArbitraryLoads = true
+
+# Web平台配置 - PWA支持
+# 注意：GitHub Actions构建时使用命令行参数配置PWA，这里的配置作为备用
+[tool.flet.web]
+app.module = "gui"
+
+# PWA配置
+[tool.flet.web.pwa]
+name = "小米钱包助手"
+short_name = "小米钱包"
+description = "小米钱包每日任务自动化助手"
+start_url = "/"
+scope = "/"
+background_color = "#ffffff"
+theme_color = "#FF6700"
+# 注意：请将下方的图标URL替换为实际的图标URL
+# icons = [
+#     { src = "https://example.com/icon-192x192.png", sizes = "192x192", type = "image/png" },
+#     { src = "https://example.com/icon-512x512.png", sizes = "512x512", type = "image/png" }
+# ]
+display = "standalone"
+orientation = "any"
