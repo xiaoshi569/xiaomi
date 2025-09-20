@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Union, Any
 import threading
 import random
+import re
 from pathlib import Path
 
 CONFIG_PATH = "xiaomiconfig.json"
@@ -193,32 +194,47 @@ class RNL:
 
     def get_task(self, task_code: str) -> Optional[str]:
         """获取任务信息。"""
-        url = f"https://{API_HOST}/mp/api/generalActivity/getTask"
         try:
-            response = self.api.post(url, data={'activityCode': self.activity_code, 'taskCode': task_code})
-            if response and response.get('code') == 0:
-                return response['value'].get('userTaskId')
-            self.error_info = f"获取任务信息失败：{response}"
-            return None
+            data = {
+                'activityCode': self.activity_code,
+                'taskCode': task_code,
+                'jrairstar_ph': '98lj8puDf9Tu/WwcyMpVyQ==',
+            }
+            response = self.api.post(
+                f"https://{API_HOST}/mp/api/generalActivity/getTask",
+                data=data,
+            )
+            if response and response['code'] != 0:
+                self.error_info = f'获取任务信息失败：{response}'
+                return None
+            return response['value']['taskInfo']['userTaskId']
         except Exception as e:
-            self.error_info = f'获取任务信息时发生异常：{e}'
+            self.error_info = f'获取任务信息失败：{e}'
             return None
 
     def complete_task(self, task_id: str, t_id: str, brows_click_url_id: str) -> Optional[str]:
         """完成任务。"""
         url = f"https://{API_HOST}/mp/api/generalActivity/completeTask"
-        data = {
+        # 使用与小米钱包3.0.py相同的参数格式和方法
+        params = {
             'activityCode': self.activity_code,
+            'app': 'com.mipay.wallet',
+            'isNfcPhone': 'true',
+            'channel': 'mipay_indexicon_TVcard',
+            'deviceType': '2',
+            'system': '1',
+            'visitEnvironment': '2',
+            'userExtra': '{"platformType":1,"com.miui.player":"4.27.0.4","com.miui.video":"v2024090290(MiVideo-UN)","com.mipay.wallet":"6.83.0.5175.2256"}',
             'taskId': task_id,
-            'tId': t_id,
+            'browsTaskId': t_id,
             'browsClickUrlId': brows_click_url_id,
-            'completeTime': str(int(time.time() * 1000)),
-            'browseTime': str(random.randint(5, 10))
+            'clickEntryType': 'undefined',
+            'festivalStatus': '0'
         }
         try:
-            response = self.api.post(url, data=data)
+            response = self.api.get(url, params=params)
             if response and response.get('code') == 0:
-                return response['value'].get('userTaskId')
+                return response.get('value')
             self.error_info = f"完成任务失败：{response}"
             return None
         except Exception as e:
@@ -227,13 +243,24 @@ class RNL:
 
     def receive_award(self, user_task_id: str) -> bool:
         """领取奖励。"""
-        url = f"https://{API_HOST}/mp/api/generalActivity/receiveAward"
-        data = {
+        url = f"https://{API_HOST}/mp/api/generalActivity/luckDraw"
+        # 使用与小米钱包3.0.py相同的参数格式
+        params = {
+            'imei': '',
+            'device': 'manet',
+            'appLimit': '{"com.qiyi.video":false,"com.youku.phone":true,"com.tencent.qqlive":true,"com.hunantv.imgo.activity":true,"com.cmcc.cmvideo":false,"com.sankuai.meituan":true,"com.anjuke.android.app":false,"com.tal.abctimelibrary":false,"com.lianjia.beike":false,"com.kmxs.reader":true,"com.jd.jrapp":false,"com.smile.gifmaker":true,"com.kuaishou.nebula":false}',
             'activityCode': self.activity_code,
-            'userTaskId': user_task_id
+            'userTaskId': user_task_id,
+            'app': 'com.mipay.wallet',
+            'isNfcPhone': 'true',
+            'channel': 'mipay_indexicon_TVcard',
+            'deviceType': '2',
+            'system': '1',
+            'visitEnvironment': '2',
+            'userExtra': '{"platformType":1,"com.miui.player":"4.27.0.4","com.miui.video":"v2024090290(MiVideo-UN)","com.mipay.wallet":"6.83.0.5175.2256"}'
         }
         try:
-            response = self.api.post(url, data=data)
+            response = self.api.get(url, params=params)
             if response and response.get('code') == 0:
                 self.error_info = ""
                 return True
@@ -241,6 +268,70 @@ class RNL:
             return False
         except Exception as e:
             self.error_info = f'领取奖励时发生异常：{e}'
+            return False
+
+    def complete_new_user_task(self) -> Optional[str]:
+        """完成应用下载试用任务"""
+        try:
+            headers = {
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'Cache-Control': 'no-cache',
+                'X-Request-ID': '1281eea0-e268-4fcc-9a5f-7dc11475b7db',
+                'X-Requested-With': 'com.mipay.wallet',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Dest': 'empty',
+                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7'
+            }
+            
+            url = f'https://{API_HOST}/mp/api/generalActivity/completeTask?activityCode=2211-videoWelfare&app=com.mipay.wallet&oaid=8c45c5802867e923&regId=KWkK5VsKXiIbAH8Rf6kgU6tpDPyNWgXY8YCM1mQtt5nd7i1%2F4BqzPq0uY7OlIEOd&versionCode=20577622&versionName=6.96.0.5453.2620&isNfcPhone=true&channel=mipay_indexicon_TVcard2test&deviceType=2&system=1&visitEnvironment=2&userExtra=%7B%22platformType%22:1,%22com.miui.video%22:%22v2023091090(MiVideo-ROM)%22,%22com.mipay.wallet%22:%226.96.0.5453.2620%22%7D&taskCode=NEW_USER_CAMPAIGN&browsTaskId=&browsClickUrlId=1306285&adInfoId=&triggerId='
+            
+            response = self.api.get(url, headers=headers)
+            if response and response['code'] != 0:
+                self.error_info = f'完成应用下载试用失败：{response}'
+                return None
+            return response['value'] if response else None
+        except Exception as e:
+            self.error_info = f'完成应用下载试用失败：{e}'
+            return None
+
+    def receive_new_user_award(self, user_task_id: str) -> bool:
+        """领取应用下载试用奖励"""
+        try:
+            # 发送领取请求前延时5秒
+            time.sleep(5)
+            
+            headers = {
+                'Connection': 'keep-alive',
+                'sec-ch-ua': '"Chromium";v="118", "Android WebView";v="118", "Not=A?Brand";v="99"',
+                'Accept': 'application/json, text/plain, */*',
+                'Cache-Control': 'no-cache',
+                'sec-ch-ua-mobile': '?1',
+                'X-Request-ID': 'c09abfa7-6ea4-4435-a741-dff3622215cf',
+                'sec-ch-ua-platform': '"Android"',
+                'X-Requested-With': 'com.mipay.wallet',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Dest': 'empty',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7'
+            }
+            
+            url = f'https://{API_HOST}/mp/api/generalActivity/luckDraw?imei=&device=alioth&appLimit=%7B%22com.qiyi.video%22:false,%22com.youku.phone%22:false,%22com.tencent.qqlive%22:false,%22com.hunantv.imgo.activity%22:false,%22com.cmcc.cmvideo%22:false,%22com.sankuai.meituan%22:false,%22com.anjuke.android.app%22:false,%22com.tal.abctimelibrary%22:false,%22com.lianjia.beike%22:false,%22com.kmxs.reader%22:false,%22com.jd.jrapp%22:false,%22com.smile.gifmaker%22:true,%22com.kuaishou.nebula%22:false%7D&activityCode=2211-videoWelfare&userTaskId={user_task_id}&app=com.mipay.wallet&oaid=8c45c5802867e923&regId=L522i5qLZR9%2Bs25kEqPBJYbbHqUS4LrpuTsgl9kdsbcyU7tjWmx1BewlRNSSZaOT&versionCode=20577622&versionName=6.96.0.5453.2620&isNfcPhone=true&channel=mipay_indexicon_TVcard2test&deviceType=2&system=1&visitEnvironment=2&userExtra=%7B%22platformType%22:1,%22com.miui.video%22:%22v2023091090(MiVideo-ROM)%22,%22com.mipay.wallet%22:%226.96.0.5453.2620%22%7D'
+            
+            response = self.api.get(url, headers=headers)
+            if response and response['code'] != 0:
+                self.error_info = f'领取应用下载试用奖励失败：{response}'
+                return False
+            
+            if response:
+                prize_info = response['value']['prizeInfo']
+                return True
+            return False
+        except Exception as e:
+            self.error_info = f'领取应用下载试用奖励失败：{e}'
             return False
 
     def query_user_info_and_records(self) -> bool:
@@ -683,6 +774,16 @@ class XiaomiWalletGUI:
             on_change=self.on_account_alias_change
         )
         
+        # 登录方式选择
+        self.login_method_radio = ft.RadioGroup(
+            content=ft.Row([
+                ft.Radio(value="qr", label="扫码登录"),
+                ft.Radio(value="cookie", label="Cookie登录")
+            ]),
+            value="qr",
+            on_change=self.on_login_method_change
+        )
+        
         # 二维码图片组件，初始状态不可见
         self.qr_image = ft.Image(
             width=240,
@@ -691,15 +792,44 @@ class XiaomiWalletGUI:
             visible=False  # 初始状态不可见
         )
         
-        self.login_status_text = ft.Text(
-            value="请输入账号别名，然后点击'生成二维码'按钮",
-            color=ft.Colors.BLACK
+        # Cookie输入组件
+        self.cookie_input_container = ft.Container(
+            content=ft.Column([
+                ft.Text("请输入Cookie信息：", weight=ft.FontWeight.BOLD),
+                ft.Text("只需要提供passToken和userId两个参数", size=12, color=ft.Colors.GREY_600),
+                ft.Divider(),
+                # passToken输入框
+                ft.TextField(
+                    label="passToken",
+                    hint_text="示例: V1:DXmurwq2/R1BHTELu6obCc+2Ip9gTy8w2NxTkAvm41UexxeULlm7bpa4g1+8uNRm...",
+                    multiline=True,
+                    min_lines=3,
+                    max_lines=5,
+                    width=600
+                ),
+                ft.TextField(
+                    label="userId", 
+                    hint_text="示例: 3081898858",
+                    width=600
+                ),
+                ft.Text("💡 提示：从Cookie字符串中提取 passToken=xxx 和 userId=xxx 的值", 
+                       size=12, color=ft.Colors.BLUE_600),
+                ft.Row([
+                    ft.ElevatedButton(
+                        text="保存账号",
+                        on_click=self.save_cookie_login,
+                        style=ft.ButtonStyle(
+                            bgcolor=ft.Colors.BLUE,
+                            color=ft.Colors.WHITE
+                        )
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER)
+            ], spacing=15),
+            visible=False,  # 初始状态不可见
+            padding=20,
+            bgcolor=ft.Colors.BLUE_50,
+            border_radius=5
         )
-        
-        self.countdown_text = ft.Text(value="")
-        
-        # 添加二维码链接显示组件
-        self.qr_url_text = ft.Text(value="", selectable=True)
         
         # 单独创建生成二维码按钮，便于在on_change事件中更新其状态
         self.generate_qr_button = ft.ElevatedButton(
@@ -708,25 +838,17 @@ class XiaomiWalletGUI:
             disabled=True  # 初始状态为禁用
         )
         
-        return ft.Column(
-            [
-                ft.Container(
-                    content=ft.Text("扫码登录", size=24, weight=ft.FontWeight.BOLD),
-                    padding=20
-                ),
-                
+        # 扫码登录区域容器
+        self.qr_login_container = ft.Container(
+            content=ft.Column([
                 ft.Container(
                     content=ft.Row(
-                        [
-                            self.account_alias_input,
-                            self.generate_qr_button
-                        ],
+                        [self.generate_qr_button],
                         alignment=ft.MainAxisAlignment.CENTER,
                         spacing=10
                     ),
-                    padding=20
+                    padding=10
                 ),
-                
                 ft.Container(
                     content=ft.Row(
                         [self.qr_image],
@@ -741,7 +863,47 @@ class XiaomiWalletGUI:
                         bottom=ft.BorderSide(1, ft.Colors.GREY_300)
                     ),
                     border_radius=5
+                )
+            ]),
+            visible=True  # 默认显示扫码登录
+        )
+        
+        # 存储refs - 简化后的结构
+        self.passtoken_input = self.cookie_input_container.content.controls[3]  # passToken输入框（索引3）
+        self.userid_input = self.cookie_input_container.content.controls[4]      # userId输入框（索引4）
+        
+        self.login_status_text = ft.Text(
+            value="请输入账号别名，选择登录方式",
+            color=ft.Colors.BLACK
+        )
+        
+        self.countdown_text = ft.Text(value="")
+        
+        # 添加二维码链接显示组件
+        self.qr_url_text = ft.Text(value="", selectable=True)
+        
+        
+        return ft.Column(
+            [
+                ft.Container(
+                    content=ft.Text("账号登录", size=24, weight=ft.FontWeight.BOLD),
+                    padding=20
                 ),
+                
+                ft.Container(
+                    content=ft.Column([
+                        self.account_alias_input,
+                        ft.Text("选择登录方式：", weight=ft.FontWeight.BOLD),
+                        self.login_method_radio
+                    ], spacing=10),
+                    padding=20
+                ),
+                
+                # 扫码登录区域
+                self.qr_login_container,
+                
+                # Cookie登录区域
+                self.cookie_input_container,
                 
                 # 显示登录状态和倒计时
                 ft.Container(
@@ -1128,6 +1290,21 @@ class XiaomiWalletGUI:
         self.generate_qr_button.disabled = self.account_alias_input.value.strip() == ""
         self.page.update()
     
+    def on_login_method_change(self, e):
+        """登录方式变化时切换显示不同的登录界面"""
+        if self.login_method_radio.value == "qr":
+            # 显示扫码登录，隐藏Cookie登录
+            self.qr_login_container.visible = True
+            self.cookie_input_container.visible = False
+            self.login_status_text.value = "请输入账号别名，然后点击'生成二维码'按钮"
+        else:
+            # 显示Cookie登录，隐藏扫码登录
+            self.qr_login_container.visible = False
+            self.cookie_input_container.visible = True
+            self.login_status_text.value = "请填写passToken和userId信息"
+        self.page.update()
+    
+    
     def generate_qr_code(self, e):
         """生成登录二维码"""
         us = self.account_alias_input.value.strip()
@@ -1297,6 +1474,67 @@ class XiaomiWalletGUI:
         
         self.update_login_status("❌ 登录超时", ft.Colors.RED)
         self.countdown_text.value = ""
+        self.page.update()
+    
+    
+    def save_cookie_login(self, e):
+        """保存Cookie登录信息"""
+        us = self.account_alias_input.value.strip()
+        
+        if not us:
+            self.show_snack_bar("❌ 请先输入账号别名", ft.Colors.RED)
+            return
+        
+        # 获取输入的passToken和userId
+        pass_token = self.passtoken_input.value.strip()
+        user_id = self.userid_input.value.strip()
+        
+        if not pass_token or not user_id:
+            self.show_snack_bar("❌ 请填写完整的passToken和userId", ft.Colors.RED)
+            return
+        
+        # 直接保存，无需验证
+        try:
+            self.update_login_status("💾 正在保存账号...", ft.Colors.BLUE)
+            
+            # 创建账号对象并保存
+            account = XiaomiAccount(us)
+            account.user_id = user_id
+            account.pass_token = pass_token  # 直接保存passToken
+            account.security_token = None   # 不需要额外的token
+            
+            if account.save_to_json():
+                self.update_login_status(f"🎉 账号 '{us}' 保存成功！", ft.Colors.GREEN)
+                self.update_account_list()
+                
+                # 清空输入框
+                self.passtoken_input.value = ""
+                self.userid_input.value = ""
+                self.account_alias_input.value = ""
+                
+                # 延迟1秒后自动跳转到首页
+                def auto_redirect():
+                    time.sleep(1)
+                    async def switch_to_home():
+                        self.tabs.selected_index = 0
+                        self.page_content.content = self.main_page
+                        self.page.update()
+                    self.page.run_task(switch_to_home)
+                threading.Thread(target=auto_redirect, daemon=True).start()
+            else:
+                self.update_login_status("❌ 保存账号信息失败", ft.Colors.RED)
+                
+        except Exception as ex:
+            self.update_login_status(f"❌ 保存账号时发生错误：{str(ex)}", ft.Colors.RED)
+    
+    
+    def show_snack_bar(self, message, color):
+        """显示提示消息"""
+        self.page.snack_bar = ft.SnackBar(
+            content=ft.Text(message),
+            bgcolor=color
+        )
+        self.page.snack_bar.open = True
         self.page.update()
     
     def save_task_log(self, result_obj):
@@ -1493,8 +1731,9 @@ class XiaomiWalletGUI:
                     
                     # 2. 获取会话Cookie
                     result_obj["logs"].append("1. 获取会话Cookie...")
-                    session_cookies = self.get_session_cookies(pass_token, user_id)
                     
+                    # 使用passToken获取会话Cookie
+                    session_cookies = self.get_session_cookies(pass_token, user_id)
                     if not session_cookies:
                         error_msg = "获取会话Cookie失败，请重新登录"
                         result_obj["error"] = error_msg
@@ -1502,7 +1741,8 @@ class XiaomiWalletGUI:
                         failed_accounts += 1
                     else:
                         result_obj["logs"].append("✅ 会话Cookie获取成功")
-                        
+                    
+                    if session_cookies:
                         # 3. 创建API请求实例
                         api_request = ApiRequest(session_cookies)
                         rnl = RNL(api_request)
@@ -1517,65 +1757,99 @@ class XiaomiWalletGUI:
                         else:
                             result_obj["logs"].append(f"✅ 当前可兑换视频天数: {rnl.total_days}")
                             
+                            # 检查今天是否已经完成任务
+                            today_completed = False
+                            if rnl.today_records and len(rnl.today_records) > 0:
+                                today_completed = True
+                                result_obj["logs"].append(f"📅 检测到今日已有 {len(rnl.today_records)} 条奖励记录")
+                                for record in rnl.today_records:
+                                    record_time = record.get('createTime', '未知时间')
+                                    days = int(record.get('value', 0)) / 100
+                                    result_obj["logs"].append(f"   ⏰ {record_time} | 🎁 +{days:.2f}天")
+                            else:
+                                result_obj["logs"].append("📅 今日暂无奖励记录，准备执行任务")
+                            
+                            # 4. 先尝试完成新手任务
+                            result_obj["logs"].append("3. 尝试完成应用下载试用任务...")
+                            new_user_task_id = rnl.complete_new_user_task()
+                            if new_user_task_id:
+                                result_obj["logs"].append(f"✅ 完成应用下载试用成功，获得userTaskId: {new_user_task_id}")
+                                time.sleep(2)
+                                if rnl.receive_new_user_award(new_user_task_id):
+                                    result_obj["logs"].append("✅ 领取应用下载试用奖励成功")
+                                else:
+                                    error_msg = f"⚠️ 领取应用下载试用奖励失败"
+                                    if rnl.error_info:
+                                        error_msg += f": {rnl.error_info}"
+                                    result_obj["logs"].append(error_msg)
+                                time.sleep(2)
+                            else:
+                                result_obj["logs"].append("⚠️ 应用下载试用任务已完成或不可用")
+                            
                             # 5. 执行两轮任务，与main.py保持一致的逻辑
                             success = True
-                            for round_num in range(2):
-                                result_obj["logs"].append(f"\n--- 开始第 {round_num + 1} 轮任务 ---")
-                                tasks = rnl.get_task_list()
-                                
-                                if not tasks:
-                                    result_obj["logs"].append("⚠️ 未找到可执行的任务列表，可能今日任务已完成")
-                                    break
-                                
-                                task = tasks[0]
-                                try:
-                                    rnl.t_id = task['generalActivityUrlInfo']['id']
-                                except (KeyError, TypeError):
-                                    pass
-                                
-                                if not rnl.t_id:
-                                    result_obj["logs"].append("❌ 无法获取任务t_id，中断执行")
-                                    success = False
-                                    break
-                                
-                                task_id = task['taskId']
-                                task_code = task['taskCode']
-                                brows_click_url_id = task['generalActivityUrlInfo']['browsClickUrlId']
-                                
-                                result_obj["logs"].append("3. 执行浏览任务...")
-                                result_obj["logs"].append(f"等待随机延迟...")
-                                delay = random.randint(10, 15)
-                                result_obj["logs"].append(f"等待 {delay} 秒...")
-                                time.sleep(delay)
-                                
-                                user_task_id = rnl.complete_task(
-                                    task_id=task_id,
-                                    t_id=rnl.t_id,
-                                    brows_click_url_id=brows_click_url_id
-                                )
-                                
-                                time.sleep(random.randint(2, 4))
-                                
-                                if not user_task_id:
-                                    result_obj["logs"].append("⚠️ 任务完成接口返回为空，尝试从获取任务接口重试...")
+                            
+                            # 如果今天已经完成任务，直接跳过浏览任务
+                            if today_completed:
+                                result_obj["logs"].append("\n✅ 今天已经完成所有任务，跳过浏览任务执行")
+                            else:
+                                for round_num in range(2):
+                                    result_obj["logs"].append(f"\n--- 开始第 {round_num + 1} 轮任务 ---")
+                                    tasks = rnl.get_task_list()
+                                    
+                                    if not tasks:
+                                        result_obj["logs"].append("⚠️ 未找到可执行的任务列表，可能今日任务已完成")
+                                        break
+                                    
+                                    task = tasks[0]
+                                    try:
+                                        rnl.t_id = task['generalActivityUrlInfo']['id']
+                                    except (KeyError, TypeError):
+                                        pass
+                                    
+                                    if not rnl.t_id:
+                                        result_obj["logs"].append("❌ 无法获取任务t_id，中断执行")
+                                        success = False
+                                        break
+                                    
+                                    task_id = task['taskId']
+                                    task_code = task['taskCode']
+                                    brows_click_url_id = task['generalActivityUrlInfo']['browsClickUrlId']
+                                    
+                                    result_obj["logs"].append("4. 执行浏览任务...")
+                                    result_obj["logs"].append(f"等待随机延迟...")
+                                    delay = random.randint(10, 15)
+                                    result_obj["logs"].append(f"等待 {delay} 秒...")
+                                    time.sleep(delay)
+                                    
+                                    user_task_id = rnl.complete_task(
+                                        task_id=task_id,
+                                        t_id=rnl.t_id,
+                                        brows_click_url_id=brows_click_url_id
+                                    )
+                                    
                                     time.sleep(random.randint(2, 4))
-                                    user_task_id = rnl.get_task(task_code=task_code)
-                                
-                                if user_task_id:
-                                    result_obj["logs"].append("4. 领取奖励...")
-                                    time.sleep(random.randint(2, 4))
-                                    rnl.receive_award(user_task_id=user_task_id)
-                                    if rnl.error_info:
-                                        result_obj["logs"].append(f"⚠️ 领取奖励时可能出现问题: {rnl.error_info}")
+                                    
+                                    if not user_task_id:
+                                        result_obj["logs"].append("⚠️ 任务完成接口返回为空，尝试从获取任务接口重试...")
+                                        time.sleep(random.randint(2, 4))
+                                        user_task_id = rnl.get_task(task_code=task_code)
+                                    
+                                    if user_task_id:
+                                        result_obj["logs"].append("5. 领取奖励...")
+                                        time.sleep(random.randint(2, 4))
+                                        rnl.receive_award(user_task_id=user_task_id)
+                                        if rnl.error_info:
+                                            result_obj["logs"].append(f"⚠️ 领取奖励时可能出现问题: {rnl.error_info}")
+                                        else:
+                                            result_obj["logs"].append("✅ 奖励领取成功")
                                     else:
-                                        result_obj["logs"].append("✅ 奖励领取成功")
-                                else:
-                                    result_obj["logs"].append("❌ 未能获取user_task_id，无法领取本轮奖励")
-                                
-                                time.sleep(random.randint(2, 4))
+                                        result_obj["logs"].append("❌ 未能获取user_task_id，无法领取本轮奖励")
+                                    
+                                    time.sleep(random.randint(2, 4))
                             
                             if success:
-                                result_obj["logs"].append("\n5. 刷新最终数据...")
+                                result_obj["logs"].append("\n6. 刷新最终数据...")
                                 rnl.query_user_info_and_records()
                                 result_obj["logs"].append(f"✅ 任务执行完成！最终可兑换视频天数: {rnl.total_days}")
                                 
@@ -1593,7 +1867,7 @@ class XiaomiWalletGUI:
                                 
                                 # 执行会员自动兑换
                                 if exchange_configs:
-                                    result_obj["logs"].append(f"\n6. 执行会员自动兑换 ({len(exchange_configs)}个配置)...")
+                                    result_obj["logs"].append(f"\n7. 执行会员自动兑换 ({len(exchange_configs)}个配置)...")
                                     try:
                                         exchange_results = rnl.auto_exchange_memberships(exchange_configs)
                                         result_obj["exchange_results"] = exchange_results
@@ -1610,7 +1884,7 @@ class XiaomiWalletGUI:
                                     except Exception as ex_error:
                                         result_obj["logs"].append(f"❌ 会员兑换执行异常: {ex_error}")
                                 else:
-                                    result_obj["logs"].append("\n6. 未配置会员兑换，跳过")
+                                    result_obj["logs"].append("\n7. 未配置会员兑换，跳过")
                                 
                                 result_obj["success"] = True
                                 successful_accounts += 1
